@@ -6,7 +6,7 @@
     <title>VarnamAI - Intelligent Indic Script Transliterator</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Noto+Sans+Devanagari:wght@400;500;700&family=Noto+Sans+Tamil:wght@400;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Sans+Devanagari:wght@400;500;700&family=Noto+Sans+Tamil:wght@400;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="orb orb-1"></div>
@@ -15,9 +15,10 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="logo">
+                <!-- Logo image removed - keeping only text icon -->
                 <div class="logo-icon">व</div>
                 <div class="logo-text">
-                    <h1>VarnamAI</h1>
+                    <h1>Varnam<span class="accent">AI</span></h1>
                     <p>Intelligent Script Transliterator</p>
                 </div>
             </div>
@@ -50,7 +51,7 @@
     </div>
 
     <div class="container">
-        <!-- Step 0 -->
+        <!-- Step 0: Upload CSV -->
         <div class="step-content active" id="step0">
             <div class="card">
                 <div class="card-header">
@@ -58,12 +59,49 @@
                     <p>Start by uploading a CSV file containing names to transliterate</p>
                 </div>
                 <div class="card-body">
+                    <!-- Enhanced Dropzone -->
                     <div class="dropzone" id="dropzone">
-                        <div class="dropzone-icon">📂</div>
-                        <h3>Drop CSV file here or click to browse</h3>
-                        <p style="color: #888; margin-top: 0.5rem;">Supports .csv files with a name column</p>
+                        <div class="dropzone-icon-wrapper">
+                            <div class="dropzone-icon" id="dropzoneIcon">📊</div>
+                            <div class="success-checkmark" id="successCheckmark">✓</div>
+                        </div>
+                        <h3 class="dropzone-title" id="dropzoneTitle">Upload your CSV file</h3>
+                        <p class="dropzone-subtitle" id="dropzoneSubtitle">Drag & drop or click to browse • CSV only • Max 100MB</p>
+                        <div class="progress-indicator" id="progressIndicator">
+                            <div class="progress-bar" id="uploadProgressBar"></div>
+                        </div>
                         <input type="file" id="csvInput" accept=".csv" hidden>
                     </div>
+
+                    <!-- File Info Bar (appears after upload) -->
+                    <div id="fileInfoBar" class="file-info-bar hidden">
+                        <div class="file-info-content">
+                            <div class="file-details">
+                                <div class="file-icon">📄</div>
+                                <div>
+                                    <div class="file-name" id="fileName">-</div>
+                                    <div class="file-size" id="fileSize">-</div>
+                                </div>
+                                <div class="file-stats">
+                                    <div class="file-stat">
+                                        <span>📊</span>
+                                        <span class="file-stat-value" id="fileRows">-</span>
+                                        <span>rows</span>
+                                    </div>
+                                    <div class="file-stat">
+                                        <span>📋</span>
+                                        <span class="file-stat-value" id="fileColumns">-</span>
+                                        <span>columns</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="remove-file-btn" id="removeFileBtn">Remove</button>
+                        </div>
+                    </div>
+
+                    <!-- Upload Feedback Area -->
+                    <div id="uploadFeedback" style="margin-top: 1rem;"></div>
+
                     <div id="csvPreview" style="display: none; margin-top: 2rem;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <div class="engine-badge" id="fileBadge"></div>
@@ -75,10 +113,11 @@
                         </div>
                         <div class="log-container" style="margin-bottom: 0;">
                             <div class="log-header">
-                                <span>Data Preview</span>
+                                <span>📊 Data Preview (First 5 rows)</span>
                             </div>
-                            <div class="log-content" id="dataPreview" style="height: auto; max-height: 200px;"></div>
+                            <div class="log-content" id="dataPreview" style="height: auto; max-height: 250px;"></div>
                         </div>
+                        <div id="columnInfo" style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px; font-size: 11px; color: #8888aa;"></div>
                     </div>
                 </div>
                 <div class="card-footer">
@@ -87,7 +126,7 @@
             </div>
         </div>
 
-        <!-- Step 1 -->
+        <!-- Step 1: Choose Engine -->
         <div class="step-content" id="step1">
             <div class="card">
                 <div class="card-header">
@@ -99,18 +138,19 @@
                         <div class="engine-card" data-engine="groq">
                             <div class="engine-icon">☁️</div>
                             <h3>Groq Cloud</h3>
-                            <p style="color: #888; font-size: 0.85rem;">High-speed cloud inference with Llama models</p>
+                            <p style="color: #8888aa; font-size: 0.85rem;">High-speed cloud inference with Llama models</p>
                             <ul style="list-style: none; margin-top: 1rem;">
                                 <li style="padding: 4px 0;">✓ Fastest transliteration</li>
                                 <li style="padding: 4px 0;">✓ Multiple model options</li>
                                 <li style="padding: 4px 0;">✓ Requires API key</li>
                             </ul>
                             <div class="engine-badge">⚡ Recommended for speed</div>
+
                         </div>
                         <div class="engine-card" data-engine="ai4bharat">
                             <div class="engine-icon">🔒</div>
                             <h3>ai4bharat</h3>
-                            <p style="color: #888; font-size: 0.85rem;">Local transliteration engine</p>
+                            <p style="color: #8888aa; font-size: 0.85rem;">Local transliteration engine</p>
                             <ul style="list-style: none; margin-top: 1rem;">
                                 <li style="padding: 4px 0;">✓ No API key needed</li>
                                 <li style="padding: 4px 0;">✓ Privacy guaranteed</li>
@@ -127,7 +167,7 @@
             </div>
         </div>
 
-        <!-- Step 2 -->
+        <!-- Step 2: Configure -->
         <div class="step-content" id="step2">
             <div class="card">
                 <div class="card-header">
@@ -137,7 +177,10 @@
                 <div class="card-body">
                     <div id="groqConfig" style="display: none;">
                         <div class="form-group">
-                            <label>🔑 Groq API Key</label>
+                            <label style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>🔑 Groq API Key</span>
+                                <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="groq-label-link">Get key ↗</a>
+                            </label>
                             <div class="input-group">
                                 <input type="password" id="apiKey" placeholder="gsk_..." class="form-input">
                                 <button id="testKeyBtn" class="btn-secondary btn-small">Test</button>
@@ -158,11 +201,6 @@
                                 <div data-model="llama-3.1-8b-instant" class="model-card">
                                     <div class="model-name">Llama 3.1 8B</div>
                                     <div class="model-desc">Fastest</div>
-                                    <div class="model-check">✓</div>
-                                </div>
-                                <div data-model="gemma2-9b-it" class="model-card">
-                                    <div class="model-name">Gemma 2 9B</div>
-                                    <div class="model-desc">Balanced</div>
                                     <div class="model-check">✓</div>
                                 </div>
                             </div>
@@ -203,19 +241,19 @@
                         <div class="language-grid">
                             <div data-lang="hi" class="lang-card selected">
                                 <div>हिन्दी</div>
-                                <div style="font-size: 0.7rem; color: #888;">Hindi</div>
+                                <div style="font-size: 0.7rem; color: #8888aa;">Hindi</div>
                             </div>
                             <div data-lang="ta" class="lang-card">
                                 <div>தமிழ்</div>
-                                <div style="font-size: 0.7rem; color: #888;">Tamil</div>
+                                <div style="font-size: 0.7rem; color: #8888aa;">Tamil</div>
                             </div>
                             <div data-lang="te" class="lang-card">
                                 <div>తెలుగు</div>
-                                <div style="font-size: 0.7rem; color: #888;">Telugu</div>
+                                <div style="font-size: 0.7rem; color: #8888aa;">Telugu</div>
                             </div>
                             <div data-lang="mr" class="lang-card">
                                 <div>मराठी</div>
-                                <div style="font-size: 0.7rem; color: #888;">Marathi</div>
+                                <div style="font-size: 0.7rem; color: #8888aa;">Marathi</div>
                             </div>
                         </div>
                         <div class="engine-badge" id="selectedLangsBadge" style="margin-top: 1rem; display: inline-block;">Selected: Hindi</div>
@@ -228,7 +266,7 @@
             </div>
         </div>
 
-        <!-- Step 3 -->
+        <!-- Step 3: Results -->
         <div class="step-content" id="step3">
             <div class="card">
                 <div class="card-header">
@@ -259,7 +297,7 @@
                     </div>
                     <div style="text-align: center; margin: 0.5rem 0 1rem;">
                         <span id="progressPct">0%</span>
-                        <span id="etaText" style="color: #888; margin-left: 1rem;"></span>
+                        <span id="etaText" style="color: #8888aa; margin-left: 1rem;"></span>
                     </div>
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
                         <button id="stopBtn" class="btn-danger btn-small" style="display: none;">⏹️ Stop</button>
