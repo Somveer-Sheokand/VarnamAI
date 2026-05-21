@@ -27,11 +27,7 @@ RUN pip install --default-timeout=100 --no-cache-dir \
     flask>=2.0.0 \
     flask-cors>=4.0.0 \
     gunicorn==20.1.0 \
-    ai4bharat-transliteration>=1.1.3 \
-    pandas>=1.5.0 \
-    numpy>=1.24.0 \
-    aiohttp>=3.8.0 \
-    openpyxl>=3.1.0
+    ai4bharat-transliteration>=1.1.3
 
 # Copy application files
 COPY . .
