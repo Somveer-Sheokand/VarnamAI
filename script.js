@@ -1,3 +1,43 @@
+// ============ PREVENT FILES FROM OPENING IN NEW TAB ============
+document.body.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+});
+
+document.body.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dropzoneElement = document.getElementById('dropzone');
+    if (dropzoneElement && dropzoneElement.contains(e.target)) {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+
+            if (fileExtension === 'csv') {
+                if (typeof handleCSV === 'function') {
+                    handleCSV(file);
+                }
+            } else {
+                showToast(`❌ Invalid file type: .${fileExtension}. Please upload CSV file only.`, 'error');
+            }
+        }
+    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        showToast('📁 Please drop CSV files only in the upload area', 'warning');
+    }
+});
+
+window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+});
+
+window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+});
+
 // DOM Elements
 const dropzone = document.getElementById('dropzone');
 const csvInput = document.getElementById('csvInput');
@@ -209,7 +249,7 @@ function renderResultsTable() {
 
     if (nameItems.length > 100) {
         const moreRow = document.createElement('tr');
-        moreRow.innerHTML = `<td colspan="${langsArray.length + 3}" style="text-align:center; color:#888;">... and ${nameItems.length - 100} more rows. Export CSV to see all.</td>`;
+        moreRow.innerHTML = `<td colspan="${langsArray.length + 3}" style="text-align:center; color:#888;">... and ${nameItems.length - 100} more rows. Export CSV to see all.</table>`;
         resultsBody.appendChild(moreRow);
     }
 }
@@ -230,63 +270,306 @@ function showStep(step) {
     }
 }
 
-// CSV Handling
-dropzone.addEventListener('click', () => csvInput.click());
-dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropzone.style.borderColor = '#ff6b2b';
-    dropzone.style.background = 'rgba(255, 107, 43, 0.05)';
-});
-dropzone.addEventListener('dragleave', () => {
-    dropzone.style.borderColor = 'rgba(255, 107, 43, 0.4)';
-    dropzone.style.background = 'rgba(0, 0, 0, 0.2)';
-});
-dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropzone.style.borderColor = 'rgba(255, 107, 43, 0.4)';
-    dropzone.style.background = 'rgba(0, 0, 0, 0.2)';
-    if (e.dataTransfer.files[0]) handleCSV(e.dataTransfer.files[0]);
-});
-csvInput.addEventListener('change', (e) => {
-    if (e.target.files[0]) handleCSV(e.target.files[0]);
-});
-
+// Enhanced CSV Handling with beautiful animations
 function handleCSV(file) {
+    // File validation
+    if (!file) {
+        showToast('❌ No file selected', 'error');
+        addLog('File upload failed: No file selected', 'error');
+        return;
+    }
+
+    const fileName = file.name;
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    const allowedExtensions = ['csv'];
+
+    // Remove existing classes
+    dropzone.classList.remove('success', 'error', 'loading', 'drag-over');
+
+    if (!allowedExtensions.includes(fileExtension)) {
+        dropzone.classList.add('error');
+        const dzIcon = document.getElementById('dropzoneIcon');
+        const dzTitle = document.getElementById('dropzoneTitle');
+        const dzSubtitle = document.getElementById('dropzoneSubtitle');
+        if (dzIcon) dzIcon.innerHTML = '🚫';
+        if (dzTitle) dzTitle.textContent = 'Invalid File';
+        if (dzSubtitle) dzSubtitle.innerHTML = `<span style="color:#ef4444;">.${fileExtension.toUpperCase()} is not supported — CSV files only</span>`;
+
+        const uploadFeedback = document.getElementById('uploadFeedback');
+        if (uploadFeedback) {
+            uploadFeedback.innerHTML = `
+                <div class="invalid-file-message">
+                    <div class="error-title">🚫 Invalid File Type: .${fileExtension.toUpperCase()}</div>
+                    <div class="error-details">Only <strong>.CSV</strong> files are accepted. Please re-upload the correct file.</div>
+                    <div class="supported-formats">Supported: .csv</div>
+                </div>`;
+        }
+
+        showToast(`🚫 .${fileExtension.toUpperCase()} not supported — CSV only`, 'error');
+        addLog(`File rejected: ${fileName} — Not a CSV file`, 'error');
+        csvInput.value = '';
+
+        setTimeout(() => {
+            dropzone.classList.remove('error');
+            if (dzIcon) dzIcon.innerHTML = '📊';
+            if (dzTitle) dzTitle.textContent = 'Upload your CSV file';
+            if (dzSubtitle) dzSubtitle.textContent = 'Drag & drop or click to browse • CSV only • Max 100MB';
+            if (uploadFeedback) uploadFeedback.innerHTML = '';
+        }, 3500);
+        return;
+    }
+
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+        dropzone.classList.add('error');
+        const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+        showToast(`❌ File too large: ${fileSizeMB}MB. Maximum size is 100MB.`, 'error');
+        addLog(`File rejected: ${fileName} - Size exceeds limit`, 'error');
+        csvInput.value = '';
+
+        setTimeout(() => {
+            dropzone.classList.remove('error');
+        }, 2000);
+        return;
+    }
+
+    // Show loading state
+    dropzone.classList.add('loading');
+    const dropzoneIcon = document.getElementById('dropzoneIcon');
+    const dropzoneTitle = document.getElementById('dropzoneTitle');
+    const dropzoneSubtitle = document.getElementById('dropzoneSubtitle');
+    const progressIndicator = document.getElementById('progressIndicator');
+    const uploadProgressBar = document.getElementById('uploadProgressBar');
+
+    const originalIcon = dropzoneIcon.innerHTML;
+    dropzoneIcon.innerHTML = '🔄';
+    dropzoneTitle.textContent = 'Processing your file...';
+    dropzoneSubtitle.textContent = 'Please wait while we read your data';
+
+    // Animate progress bar
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += 10;
+        if (uploadProgressBar) {
+            uploadProgressBar.style.width = `${progress}%`;
+        }
+        if (progress >= 90) clearInterval(progressInterval);
+    }, 200);
+
+    showToast(`📁 Uploading ${fileName}...`, 'info');
+    addLog(`Processing file: ${fileName}`, 'info');
+
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: (result) => {
+            clearInterval(progressInterval);
+            if (uploadProgressBar) uploadProgressBar.style.width = '100%';
+
+            // Reset loading state
+            dropzone.classList.remove('loading');
+
+            setTimeout(() => {
+                if (uploadProgressBar) uploadProgressBar.style.width = '0%';
+            }, 500);
+
+            if (!result.data || result.data.length === 0) {
+                dropzone.classList.add('error');
+                dropzoneIcon.innerHTML = originalIcon;
+                dropzoneTitle.textContent = 'Upload your CSV file';
+                dropzoneSubtitle.textContent = 'Drag & drop or click to browse • CSV only • Max 100MB';
+                showToast('❌ CSV file is empty', 'error');
+                addLog('CSV file is empty', 'error');
+                setTimeout(() => dropzone.classList.remove('error'), 2000);
+                return;
+            }
+
+            if (result.data.length < 1 || Object.keys(result.data[0]).length === 0) {
+                dropzone.classList.add('error');
+                dropzoneIcon.innerHTML = originalIcon;
+                dropzoneTitle.textContent = 'Upload your CSV file';
+                dropzoneSubtitle.textContent = 'Drag & drop or click to browse • CSV only • Max 100MB';
+                showToast('❌ CSV file has no headers', 'error');
+                addLog('CSV file has no valid headers', 'error');
+                setTimeout(() => dropzone.classList.remove('error'), 2000);
+                return;
+            }
+
+            // Success!
+            dropzone.classList.add('success');
+
+            // Update file info bar
+            const fileInfoBar = document.getElementById('fileInfoBar');
+            const fileNameEl = document.getElementById('fileName');
+            const fileSizeEl = document.getElementById('fileSize');
+            const fileRowsEl = document.getElementById('fileRows');
+            const fileColumnsEl = document.getElementById('fileColumns');
+
+            if (fileNameEl) fileNameEl.textContent = file.name;
+            if (fileSizeEl) fileSizeEl.textContent = `${(file.size / 1024).toFixed(2)} KB`;
+            if (fileRowsEl) fileRowsEl.textContent = result.data.length.toLocaleString();
+            if (fileColumnsEl) fileColumnsEl.textContent = Object.keys(result.data[0]).length;
+
+            fileInfoBar.classList.remove('hidden');
+
+            // After animation: keep dropzone in "uploaded" state showing file name
+            setTimeout(() => {
+                dropzone.classList.remove('success');
+                dropzone.classList.add('uploaded');
+                dropzoneIcon.innerHTML = '📄';
+                dropzoneTitle.textContent = file.name;
+                dropzoneSubtitle.innerHTML = `<span class="ready-pill">✦ Ready for Transliteration</span>`;
+            }, 2000);
+
             csvData = result.data;
             csvHeaders = Object.keys(csvData[0]);
-            nameColumn.innerHTML = csvHeaders.map(h => `<option value="${h}">${h}</option>`).join('');
+
+            nameColumn.innerHTML = csvHeaders.map(h => `<option value="${h}">${escapeHtml(h)}</option>`).join('');
             const guess = csvHeaders.find(h => h.toLowerCase().includes('name'));
             if (guess) nameColumn.value = guess;
 
-            fileBadge.textContent = `✅ ${file.name} — ${csvData.length.toLocaleString()} rows`;
+            fileBadge.innerHTML = `✅ ${file.name} — ${csvData.length.toLocaleString()} rows, ${csvHeaders.length} columns`;
+            fileBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+            fileBadge.style.borderColor = '#10b981';
+            fileBadge.style.color = '#10b981';
 
             const previewRows = csvData.slice(0, 5);
-            dataPreview.innerHTML = previewRows.map(row => {
-                const display = Object.values(row).slice(0, 3).join(' | ');
-                return `<div style="padding: 4px 0;">${escapeHtml(display.substring(0, 100))}</div>`;
+            dataPreview.innerHTML = previewRows.map((row, idx) => {
+                const display = Object.values(row).slice(0, 4).join(' | ');
+                return `<div style="padding: 10px 0; border-bottom: 1px solid #2a2548; font-family: monospace; font-size: 12px;">
+                    <span style="color: #ff9f4a; font-weight: 600;">${idx + 1}.</span> ${escapeHtml(display.substring(0, 150))}
+                </div>`;
             }).join('');
 
+            const columnInfo = document.getElementById('columnInfo');
+            if (columnInfo) {
+                columnInfo.innerHTML = `📊 ${csvHeaders.length} columns: ${csvHeaders.slice(0, 8).map(h => escapeHtml(h)).join(', ')}${csvHeaders.length > 8 ? '...' : ''}`;
+            }
+
             csvPreview.style.display = 'block';
-            addLog(`Loaded ${csvData.length.toLocaleString()} rows from ${file.name}`, 'success');
-            showToast(`CSV loaded: ${csvData.length.toLocaleString()} rows`, 'success');
+            addLog(`✅ Loaded ${csvData.length.toLocaleString()} rows from ${file.name}`, 'success');
+            showToast(`✅ CSV loaded! ${csvData.length.toLocaleString()} rows ready.`, 'success');
+
+            setTimeout(() => {
+                csvPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
         },
         error: (err) => {
-            addLog(`CSV parse error: ${err.message}`, 'error');
-            showToast('Failed to parse CSV', 'error');
+            clearInterval(progressInterval);
+            dropzone.classList.remove('loading');
+            dropzone.classList.add('error');
+            const dropzoneIcon = document.getElementById('dropzoneIcon');
+            const dropzoneTitle = document.getElementById('dropzoneTitle');
+            const dropzoneSubtitle = document.getElementById('dropzoneSubtitle');
+
+            dropzoneIcon.innerHTML = '📊';
+            dropzoneTitle.textContent = 'Upload your CSV file';
+            dropzoneSubtitle.textContent = 'Drag & drop or click to browse • CSV only • Max 100MB';
+            if (uploadProgressBar) uploadProgressBar.style.width = '0%';
+
+            addLog(`❌ CSV parse error: ${err.message}`, 'error');
+            showToast('Failed to parse CSV. Please check file format.', 'error');
+            csvData = null;
+            csvPreview.style.display = 'none';
+            fileBadge.innerHTML = '';
+            csvInput.value = '';
+
+            setTimeout(() => {
+                dropzone.classList.remove('error');
+            }, 2000);
         }
     });
 }
 
-changeFileBtn.addEventListener('click', () => {
+// Remove file button handler
+const removeFileBtn = document.getElementById('removeFileBtn');
+if (removeFileBtn) {
+    removeFileBtn.addEventListener('click', () => {
+        resetFileUpload();
+    });
+}
+
+// Enhanced dropzone drag events
+dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag-over');
+    const dropzoneTitle = document.getElementById('dropzoneTitle');
+    if (dropzoneTitle) dropzoneTitle.textContent = 'Release to upload';
+});
+
+dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('drag-over');
+    const dropzoneTitle = document.getElementById('dropzoneTitle');
+    if (dropzoneTitle) dropzoneTitle.textContent = 'Upload your CSV file';
+});
+
+// ============ ADDED DROP EVENT LISTENER ============
+dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.remove('drag-over');
+    const dropzoneTitle = document.getElementById('dropzoneTitle');
+    if (dropzoneTitle) dropzoneTitle.textContent = 'Upload your CSV file';
+    const file = e.dataTransfer.files[0];
+    if (file) handleCSV(file);
+});
+
+// Dropzone click
+dropzone.addEventListener('click', () => csvInput.click());
+csvInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleCSV(e.target.files[0]);
+});
+
+function resetFileUpload() {
     csvData = null;
+    csvHeaders = [];
     csvPreview.style.display = 'none';
     csvInput.value = '';
     translationCache.clear();
-    addLog('File cleared, upload new CSV', 'info');
+    resultsMap.clear();
+    nameItems = [];
+    processed = 0;
+    succeeded = 0;
+    failed = 0;
+    totalNames = 0;
+
+    fileBadge.innerHTML = '';
+    fileBadge.style.background = '';
+    fileBadge.style.borderColor = '';
+    fileBadge.style.color = '';
+
+    nameColumn.innerHTML = '';
+    dataPreview.innerHTML = '';
+
+    const columnInfo = document.getElementById('columnInfo');
+    if (columnInfo) columnInfo.innerHTML = '';
+
+    const dropzoneIcon = document.getElementById('dropzoneIcon');
+    const dropzoneTitle = document.getElementById('dropzoneTitle');
+    const dropzoneSubtitle = document.getElementById('dropzoneSubtitle');
+    if (dropzoneIcon) dropzoneIcon.innerHTML = '📊';
+    if (dropzoneTitle) dropzoneTitle.textContent = 'Upload your CSV file';
+    if (dropzoneSubtitle) dropzoneSubtitle.textContent = 'Drag & drop or click to browse • CSV only • Max 100MB';
+    dropzone.classList.remove('uploaded', 'success', 'error');
+
+    const uploadFeedback = document.getElementById('uploadFeedback');
+    if (uploadFeedback) uploadFeedback.innerHTML = '';
+
+    const fileInfoBar = document.getElementById('fileInfoBar');
+    if (fileInfoBar) fileInfoBar.classList.add('hidden');
+
+    addLog('File cleared. Upload a new CSV file.', 'info');
+    showToast('File cleared. Upload a new CSV file.', 'info');
+}
+
+changeFileBtn.addEventListener('click', () => {
+    if (csvData && csvData.length > 0) {
+        if (confirm('Clear current file and upload a new one?')) {
+            resetFileUpload();
+        }
+    } else {
+        resetFileUpload();
+    }
 });
 
 nextStep0.addEventListener('click', () => {
@@ -705,7 +988,7 @@ if (stopBtn) {
 
 startBtn.addEventListener('click', startTransliteration);
 
-// ============ NEW SESSION BUTTON WITH WARNING ============
+// New Session Button with Warning
 resetBtn.addEventListener('click', () => {
     let warningMessage = '⚠️ Start a new session? All current data will be lost.';
 
@@ -720,10 +1003,9 @@ resetBtn.addEventListener('click', () => {
     }
 });
 
-// ============ PAGE REFRESH WARNING ============
+// Page Refresh Warning
 let isProcessingActive = false;
 
-// Track processing state
 setInterval(() => {
     isProcessingActive = (processed > 0 && !stopFlag && processed < totalNames);
 }, 1000);
@@ -793,7 +1075,7 @@ async function checkBackend() {
         } else throw new Error();
     } catch (e) {
         if (backendStatus) {
-            backendStatus.innerHTML = '<span class="status-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span><span style="margin-left:8px;">Backend: Offline (run python app.py)</span>';
+            backendStatus.innerHTML = '<span class="status-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span><span style="margin-left:8px;">Backend: Disconnected</span>';
         }
     }
 }
